@@ -20,7 +20,28 @@ This project sets up a Kubernetes-based environment for deploying a FastAPI appl
    ```bash
    kind create cluster --config kubernetes/kind-config.yaml --name kind-hero-and-pg
    ```
-   - The cluster configuration is defined in `kubernetes/kind-config.yaml`.
+   **File: `kubernetes/kind-config.yaml`**
+   ```yaml
+   apiVersion: kind.x-k8s.io/v1alpha4
+   kind: Cluster
+   nodes:
+      - role: control-plane
+         extraPortMappings:
+            - containerPort: 80
+               hostPort: 30001
+               listenAddress: "127.0.0.1"
+               protocol: TCP # Exposes port 80 of the cluster for future applications.
+            - containerPort: 30002
+               hostPort: 30002
+               protocol: TCP # Maps the FastAPI application service port.
+      - role: worker # Worker node for application workloads.
+      - role: worker # Additional worker for scalability.
+      - role: worker # Another worker for potential distributed load.
+
+   ```
+   **Explanation**:
+   - The control plane and workers are configured for a simple local cluster.
+   - Extra port mappings expose specific ports for local testing.
 
 #### 2. **PostgreSQL Setup**
 1. Deploy the CloudNativePG operator:
@@ -58,8 +79,33 @@ This project sets up a Kubernetes-based environment for deploying a FastAPI appl
    ```
 2. Load the Docker image into the Kind cluster:
    ```bash
-   kind load docker-image fastapi-hero:latest --name kind-hero-and-pg
+   kubectl apply -f kubernetes/postgres-cluster.yaml
    ```
+   **File: `kubernetes/postgres-cluster.yaml`**
+   ```yaml
+   apiVersion: postgresql.cnpg.io/v1
+   kind: Cluster
+   metadata:
+      name: cluster-with-metrics # Name of the PostgreSQL cluster for identification.
+   spec:
+      instances: 3 # Configures 3 instances for high availability.
+      storage:
+         size: 1Gi # Specifies storage size for each instance (adjustable for testing).
+      monitoring:
+         enablePodMonitor: true # Enables Prometheus monitoring of this cluster.
+      bootstrap:
+         initdb:
+            database: mydb # Prepares a database named `mydb` on initialization.
+            owner: myuser # Creates a database user `myuser` with ownership.
+            secret:
+            name: mydb-secret # Uses a Kubernetes secret for credentials.
+      postgresql:
+         pg_hba:
+            - host all all 0.0.0.0/0 scram-sha-256 # Configures access control using scram-sha-256 authentication.
+   ```
+   **Explanation**:
+   - The `Cluster` resource sets up a high-availability PostgreSQL instance.
+   - Predefined credentials ensure easy integration with the application.
 3. Create a namespace for the application:
    ```bash
    kubectl create ns fastapi-hero-ns
@@ -68,14 +114,90 @@ This project sets up a Kubernetes-based environment for deploying a FastAPI appl
    ```bash
    kubectl apply -f kubernetes/mydb-secret.yaml -n fastapi-hero-ns
    ```
+   **File: `kubernetes/mydb-secret.yaml`**
+   ```yaml
+   apiVersion: v1
+   kind: Secret
+   metadata:
+      name: mydb-secret # Name of the secret for application reference.
+   type: kubernetes.io/basic-auth # Standard secret type for database credentials.
+   data:
+      username: bXl1c2Vy # Base64-encoded value for "myuser".
+      password: bXlwYXNzd29yZA== # Base64-encoded value for "mypassword".
+   ```
+   **Explanation**:
+   - Secrets store credentials securely in Kubernetes.
 5. Deploy the FastAPI application:
    ```bash
    kubectl apply -f kubernetes/hero-app.deployment.yaml -n fastapi-hero-ns
    ```
+   **File: `kubernetes/hero-app.deployment.yaml`**
+   ```yaml
+   apiVersion: apps/v1
+   kind: Deployment
+   metadata:
+      name: fastapi-hero # Name of the deployment.
+      namespace: fastapi-hero-ns # Isolates the application in a dedicated namespace.
+   spec:
+      replicas: 1 # Single replica for simplicity in local testing (can scale as needed).
+      selector:
+         matchLabels:
+            app: fastapi-hero # Matches pods labeled with `app: fastapi-hero`.
+      template:
+         metadata:
+            labels:
+            app: fastapi-hero # Labels for selectors and identification.
+         spec:
+            containers:
+               - name: fastapi-hero
+                  image: fastapi-hero:latest # Uses the locally built image for the application.
+                  imagePullPolicy: Never # Ensures the image is not pulled from a remote registry.
+                  ports:
+                     - containerPort: 8000 # Container port exposed for FastAPI.
+                  env:
+                     - name: POSTGRES_HOST
+                        value: cluster-with-metrics-rw.default.svc.cluster.local # Service DNS name for PostgreSQL.
+                     - name: POSTGRES_PORT
+                        value: "5432" # PostgreSQL default port.
+                     - name: POSTGRES_DB
+                        value: mydb # Database name.
+                     - name: POSTGRES_USER
+                        valueFrom:
+                           secretKeyRef:
+                              name: mydb-secret # References the secret for username.
+                              key: username
+                     - name: POSTGRES_PASSWORD
+                        valueFrom:
+                           secretKeyRef:
+                              name: mydb-secret # References the secret for password.
+                              key: password
+   ```
+   **Explanation**:
+   - Configures a single replica deployment with clear database connection details.
+   - Uses Kubernetes secrets to inject sensitive data securely.
 6. Expose the application:
    ```bash
    kubectl apply -f kubernetes/hero-app.service.yaml -n fastapi-hero-ns
    ```
+   **File: `kubernetes/hero-app.service.yaml`**
+   ```yaml
+   apiVersion: v1
+   kind: Service
+   metadata:
+   name: fastapi-hero # Service name for DNS and references.
+   spec:
+   type: NodePort # Exposes the service to the host via a specific port.
+   selector:
+      app: fastapi-hero # Matches pods labeled `app: fastapi-hero`.
+   ports:
+      - protocol: TCP
+        port: 80 # External port for accessing the application.
+        targetPort: 8000 # Internal container port.
+        nodePort: 30002 # NodePort mapped to the host for local testing.
+   ```
+   **Explanation**:
+   - A `NodePort` service exposes the application locally for ease of access.
+   - Port mappings make the FastAPI app accessible via `http://localhost:30002`.
 
 ---
 
