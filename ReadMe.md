@@ -77,13 +77,75 @@ This project sets up a Kubernetes-based environment for deploying a FastAPI appl
    kubectl apply -f kubernetes/hero-app.service.yaml -n fastapi-hero-ns
    ```
 
-#### 5. **Testing the Deployment**
-1. Access the FastAPI application via:
+---
+
+### Testing the Deployment
+
+#### 1. **Accessing the Application**
+The application is accessible locally via NodePort:
    ```
    http://localhost:30002/docs
    ```
-   - Provides Swagger UI for API interaction.
-2. Verify database integration by using the API to create and retrieve heroes.
+   - This URL provides the Swagger UI to interact with the FastAPI application.
+
+#### 2. **Testing API Functionality**
+- Use the `/heroes/` endpoints available in the Swagger UI to create and retrieve heroes.
+
+#### 3. **Testing Database Connection**
+To verify the connection to the PostgreSQL database:
+
+1. **Port-forward the PostgreSQL service**:
+   ```bash
+   kubectl port-forward svc/cluster-with-metrics-rw 5432:5432 -n default
+   ```
+   - This command forwards port `5432` from the PostgreSQL service to your local machine.
+
+2. **Connect using `psql` or a database client**:
+   - Install `psql` or use a GUI database client like DBeaver or pgAdmin.
+   - Use the following connection details:
+     ```
+     Host: localhost
+     Port: 5432
+     Database: mydb
+     User: myuser
+     Password: mypassword
+     ```
+   - Alternatively, connect using the `psql` CLI:
+     ```bash
+     psql -h localhost -U myuser -d mydb
+     ```
+     - When prompted for a password, use `mypassword`.
+
+3. **Run SQL queries**:
+   - After successfully connecting, verify the database structure and contents:
+     ```sql
+     \dt
+     SELECT * FROM hero;
+     ```
+   - The `\dt` command lists all tables, and the `SELECT` command checks if any data exists in the `hero` table.
+
+#### 4. **Verifying Prometheus**
+To confirm Prometheus is running and collecting metrics:
+
+1. **Port-forward the Prometheus server**:
+   ```bash
+   kubectl port-forward svc/prometheus-community-kube-prometheus 9090
+   ```
+   - This command forwards port `9090` from the Prometheus service to your local machine.
+
+2. **Access the Prometheus dashboard**:
+   - Open your browser and navigate to:
+     ```
+     http://localhost:9090
+     ```
+
+3. **Explore metrics**:
+   - Use the search bar to query metrics such as:
+     ```
+     cnpg_
+     ```
+     - Metrics with the `cnpg_` prefix provide insights into the PostgreSQL cluster's performance and health.
+   - Verify that Prometheus is actively collecting metrics from the PostgreSQL cluster and other monitored components.
 
 ---
 
@@ -98,8 +160,8 @@ This project sets up a Kubernetes-based environment for deploying a FastAPI appl
 ---
 
 ### Additional Notes
-- **Prometheus Metrics**: Monitor metrics with the `cnpg_` prefix.
-- **Port Mapping**: Ports exposed for local access via `kind-config.yaml`.
+- **Prometheus Metrics**: Metrics with the `cnpg_` prefix provide insights into PostgreSQL cluster health.
+- **Port Mapping**: Ports exposed for local access are defined in `kubernetes/kind-config.yaml`.
 
 ### Conclusion
-This setup demonstrates deploying and managing a monitored FastAPI application and PostgreSQL backend in a local Kubernetes cluster for testing and development purposes.
+This guide details the deployment of a FastAPI application backed by PostgreSQL with Prometheus monitoring in a Kubernetes cluster. The setup is optimized for local development and testing using Kind.
