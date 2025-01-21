@@ -13,7 +13,7 @@ This project sets up a Kubernetes-based environment for deploying a FastAPI appl
 
 ---
 
-### Steps to Reproduce
+### Steps
 
 #### 1. **Cluster Setup**
 1. Create a Kubernetes cluster using Kind:
