@@ -1,7 +1,7 @@
-### README: Kubernetes Cluster for FastAPI Hero Application with PostgreSQL and Prometheus
+### README: Kubernetes Cluster for FastAPI Hero Application
 
 #### Overview
-This project demonstrates setting up a Kubernetes-based environment for running a highly available FastAPI application, backed by a PostgreSQL database and monitored using Prometheus. The solution is based on the requirements provided and uses tools like Kind for local Kubernetes clusters, Docker for containerization, and CloudNativePG for PostgreSQL management.
+This project sets up a Kubernetes-based environment for deploying a FastAPI application with a PostgreSQL backend and Prometheus monitoring. The setup is highly available, monitored, and runs on a local Kind cluster.
 
 ---
 
@@ -20,14 +20,14 @@ This project demonstrates setting up a Kubernetes-based environment for running 
    ```bash
    kind create cluster --config kubernetes/kind-config.yaml --name kind-hero-and-pg
    ```
-   - Configuration for the Kind cluster is defined in `kubernetes/kind-config.yaml`.
+   - The cluster configuration is defined in `kubernetes/kind-config.yaml`.
 
 #### 2. **PostgreSQL Setup**
 1. Deploy the CloudNativePG operator:
    ```bash
    kubectl apply --server-side -f https://raw.githubusercontent.com/cloudnative-pg/cloudnative-pg/release-1.25/releases/cnpg-1.25.0.yaml
    ```
-2. Verify the deployment of the operator:
+2. Confirm the deployment:
    ```bash
    kubectl get deployment -n cnpg-system cnpg-controller-manager
    ```
@@ -35,18 +35,18 @@ This project demonstrates setting up a Kubernetes-based environment for running 
    ```bash
    kubectl apply -f kubernetes/postgres-cluster.yaml
    ```
-   - The manifest includes the creation of a PostgreSQL database named `mydb` and a user `myuser` secured by credentials stored in a Kubernetes secret.
+   - Configures a PostgreSQL cluster with monitoring enabled and credentials stored in `kubernetes/mydb-secret.yaml`.
 
 #### 3. **Monitoring Setup**
 1. Add Prometheus Helm repository:
    ```bash
    helm repo add prometheus-community https://prometheus-community.github.io/helm-charts
    ```
-2. Install the Prometheus stack:
+2. Install Prometheus stack:
    ```bash
    helm upgrade --install -f https://raw.githubusercontent.com/cloudnative-pg/cloudnative-pg/main/docs/src/samples/monitoring/kube-stack-config.yaml prometheus-community prometheus-community/kube-prometheus-stack
    ```
-3. Configure Prometheus rules:
+3. Apply Prometheus rules:
    ```bash
    kubectl apply -f https://raw.githubusercontent.com/cloudnative-pg/cloudnative-pg/main/docs/src/samples/monitoring/prometheusrule.yaml
    ```
@@ -64,43 +64,42 @@ This project demonstrates setting up a Kubernetes-based environment for running 
    ```bash
    kubectl create ns fastapi-hero-ns
    ```
-4. Deploy secrets for the database connection:
+4. Deploy the PostgreSQL credentials:
    ```bash
    kubectl apply -f kubernetes/mydb-secret.yaml -n fastapi-hero-ns
    ```
 5. Deploy the FastAPI application:
    ```bash
-   kubectl apply -f kubernetes/hero-app.deployment.yml -n fastapi-hero-ns
+   kubectl apply -f kubernetes/hero-app.deployment.yaml -n fastapi-hero-ns
    ```
-6. Expose the application via a NodePort service:
+6. Expose the application:
    ```bash
-   kubectl apply -f kubernetes/hero-app-service.yml -n fastapi-hero-ns
+   kubectl apply -f kubernetes/hero-app.service.yaml -n fastapi-hero-ns
    ```
 
 #### 5. **Testing the Deployment**
-1. Access the application locally using the service's NodePort (default: 30002):
+1. Access the FastAPI application via:
    ```
    http://localhost:30002/docs
    ```
-   - This endpoint provides the Swagger UI for the FastAPI application.
-2. Verify PostgreSQL integration by creating and retrieving heroes using the exposed API.
+   - Provides Swagger UI for API interaction.
+2. Verify database integration by using the API to create and retrieve heroes.
 
 ---
 
 ### Files in the Repository
-- `Dockerfile`: Used to containerize the FastAPI application.
-- `kubernetes/kind-config.yaml`: Configuration for creating a Kind cluster with exposed ports.
-- `kubernetes/mydb-secret.yaml`: Kubernetes Secret for PostgreSQL credentials.
-- `kubernetes/postgres-cluster.yaml`: Configuration for a highly available PostgreSQL cluster with monitoring enabled.
-- `kubernetes/hero-app.deployment.yml`: Deployment manifest for the FastAPI application.
-- `kubernetes/hero-app-service.yml`: Service manifest for exposing the FastAPI application.
+1. **`Dockerfile`**: Containerizes the FastAPI application.
+2. **`kubernetes/kind-config.yaml`**: Configures a Kind cluster.
+3. **`kubernetes/mydb-secret.yaml`**: Secret for PostgreSQL credentials.
+4. **`kubernetes/postgres-cluster.yaml`**: Configures PostgreSQL cluster with monitoring.
+5. **`kubernetes/hero-app.deployment.yaml`**: Deploys the FastAPI application.
+6. **`kubernetes/hero-app.service.yaml`**: Exposes the FastAPI application via NodePort.
 
 ---
 
 ### Additional Notes
-- **NodePort Exposures**: Ports are mapped in the `kind-config.yaml` to expose the application and database locally.
-- **Prometheus Metrics**: Metrics with the prefix `cnpg_` can be monitored via Prometheus.
-- **Environment Variables**: The FastAPI application dynamically uses environment variables for database connection setup.
+- **Prometheus Metrics**: Monitor metrics with the `cnpg_` prefix.
+- **Port Mapping**: Ports exposed for local access via `kind-config.yaml`.
 
 ### Conclusion
-This setup provides a scalable and monitored environment for a FastAPI application with PostgreSQL backend, all deployable on a local Kubernetes cluster for testing and development purposes.
+This setup demonstrates deploying and managing a monitored FastAPI application and PostgreSQL backend in a local Kubernetes cluster for testing and development purposes.
