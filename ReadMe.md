@@ -56,31 +56,6 @@ This project sets up a Kubernetes-based environment for deploying a FastAPI appl
    ```bash
    kubectl apply -f kubernetes/postgres-cluster.yaml
    ```
-   - Configures a PostgreSQL cluster with monitoring enabled and credentials stored in `kubernetes/mydb-secret.yaml`.
-
-#### 3. **Monitoring Setup**
-1. Add Prometheus Helm repository:
-   ```bash
-   helm repo add prometheus-community https://prometheus-community.github.io/helm-charts
-   ```
-2. Install Prometheus stack:
-   ```bash
-   helm upgrade --install -f https://raw.githubusercontent.com/cloudnative-pg/cloudnative-pg/main/docs/src/samples/monitoring/kube-stack-config.yaml prometheus-community prometheus-community/kube-prometheus-stack
-   ```
-3. Apply Prometheus rules:
-   ```bash
-   kubectl apply -f https://raw.githubusercontent.com/cloudnative-pg/cloudnative-pg/main/docs/src/samples/monitoring/prometheusrule.yaml
-   ```
-
-#### 4. **Hero Application Deployment**
-1. Build the FastAPI application Docker image:
-   ```bash
-   docker build -t fastapi-hero:latest .
-   ```
-2. Load the Docker image into the Kind cluster:
-   ```bash
-   kubectl apply -f kubernetes/postgres-cluster.yaml
-   ```
    **File: `kubernetes/postgres-cluster.yaml`**
    ```yaml
    apiVersion: postgresql.cnpg.io/v1
@@ -106,6 +81,30 @@ This project sets up a Kubernetes-based environment for deploying a FastAPI appl
    **Explanation**:
    - The `Cluster` resource sets up a high-availability PostgreSQL instance.
    - Predefined credentials ensure easy integration with the application.
+
+#### 3. **Monitoring Setup**
+1. Add Prometheus Helm repository:
+   ```bash
+   helm repo add prometheus-community https://prometheus-community.github.io/helm-charts
+   ```
+2. Install Prometheus stack:
+   ```bash
+   helm upgrade --install -f https://raw.githubusercontent.com/cloudnative-pg/cloudnative-pg/main/docs/src/samples/monitoring/kube-stack-config.yaml prometheus-community prometheus-community/kube-prometheus-stack
+   ```
+3. Apply Prometheus rules:
+   ```bash
+   kubectl apply -f https://raw.githubusercontent.com/cloudnative-pg/cloudnative-pg/main/docs/src/samples/monitoring/prometheusrule.yaml
+   ```
+
+#### 4. **Hero Application Deployment**
+1. Build the FastAPI application Docker image:
+   ```bash
+   docker build -t fastapi-hero:latest .
+   ```
+2. Load the Docker image into the Kind cluster:
+   ```bash
+   kind load docker-image fastapi-hero:latest --name kind-hero-and-pg
+   ```
 3. Create a namespace for the application:
    ```bash
    kubectl create ns fastapi-hero-ns
@@ -184,16 +183,16 @@ This project sets up a Kubernetes-based environment for deploying a FastAPI appl
    apiVersion: v1
    kind: Service
    metadata:
-   name: fastapi-hero # Service name for DNS and references.
+      name: fastapi-hero # Service name for DNS and references.
    spec:
-   type: NodePort # Exposes the service to the host via a specific port.
-   selector:
-      app: fastapi-hero # Matches pods labeled `app: fastapi-hero`.
-   ports:
-      - protocol: TCP
-        port: 80 # External port for accessing the application.
-        targetPort: 8000 # Internal container port.
-        nodePort: 30002 # NodePort mapped to the host for local testing.
+      type: NodePort # Exposes the service to the host via a specific port.
+      selector:
+         app: fastapi-hero # Matches pods labeled `app: fastapi-hero`.
+      ports:
+         - protocol: TCP
+            port: 80 # External port for accessing the application.
+            targetPort: 8000 # Internal container port.
+            nodePort: 30002 # NodePort mapped to the host for local testing.
    ```
    **Explanation**:
    - A `NodePort` service exposes the application locally for ease of access.
