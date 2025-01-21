@@ -1,0 +1,38 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: fastapi-hero
+  namespace: fastapi-hero-ns
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: fastapi-hero
+  template:
+    metadata:
+      labels:
+        app: fastapi-hero
+    spec:
+      containers:
+        - name: fastapi-hero
+          image: fastapi-hero:latest # Update with the built image name
+          imagePullPolicy: Never
+          ports:
+            - containerPort: 8000
+          env:
+            - name: POSTGRES_HOST
+              value: cluster-with-metrics-rw.default.svc.cluster.local
+            - name: POSTGRES_PORT
+              value: "5432"
+            - name: POSTGRES_DB
+              value: mydb
+            - name: POSTGRES_USER
+              valueFrom:
+                secretKeyRef:
+                  name: mydb-secret
+                  key: username
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: mydb-secret
+                  key: password

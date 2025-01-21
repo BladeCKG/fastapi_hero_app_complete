@@ -1,0 +1,38 @@
+# apiVersion: postgresql.cnpg.io/v1
+# kind: Cluster
+# metadata:
+#   name: cluster-example
+# spec:
+#   instances: 3
+#   storage:
+#     size: 1Gi
+apiVersion: postgresql.cnpg.io/v1
+kind: Cluster
+metadata:
+  name: cluster-with-metrics
+spec:
+  instances: 3
+  storage:
+    size: 1Gi
+  monitoring:
+    enablePodMonitor: true
+  # superuserSecret:
+  #   name: superuser-secret
+  bootstrap:
+    initdb:
+      database: mydb           # Name of the database to create
+      owner: myuser            # Name of the user who owns the database
+      secret:
+        name: mydb-secret      # Reference to a Kubernetes Secret for the password
+  postgresql:
+    pg_hba:
+      - host all all 0.0.0.0/0 scram-sha-256
+---
+apiVersion: v1
+data:
+  username: bXl1c2Vy
+  password: bXlwYXNzd29yZA==
+kind: Secret
+metadata:
+  name: mydb-secret
+type: kubernetes.io/basic-auth
